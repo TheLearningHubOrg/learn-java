@@ -1,12 +1,16 @@
-# Maven build target
+# Java / Gradle
 target/
+build/
+.gradle/
+!gradle/wrapper/gradle-wrapper.jar
 *.class
-
-# Log files
 *.log
+out/
+.kotlin/
 
 # Package files
 *.jar
+!gradle/wrapper/gradle-wrapper.jar
 *.war
 *.nar
 *.ear
@@ -20,6 +24,14 @@ target/
 .classpath
 .project
 .settings/
-.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+*.swp
 .DS_Store
 Thumbs.db
+
+# Env files (never commit secrets)
+.env
+.env.*
+!.env.example

@@ -1,0 +1,5 @@
+# Store every text file with LF in the repository.
+* text=auto eol=lf
+# cmd.exe needs CRLF in batch files; the blob in git stays LF.
+*.bat text eol=crlf
+*.jar binary

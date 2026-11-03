@@ -1,15 +1,25 @@
-# Multi-stage Dockerfile for Modern Java 21+ with Generational ZGC
-FROM maven:3.9-eclipse-temurin-21-alpine AS builder
-WORKDIR /app
-COPY pom.xml .
-RUN mvn dependency:go-offline -B
+# Multi-stage build for the catalog service (plain JDK, no framework).
+# Stage 1 compiles and tests with the full JDK; stage 2 ships only the JRE and app.jar.
 
+# ---- build ------------------------------------------------------------------
+FROM eclipse-temurin:25-jdk AS build
+WORKDIR /src
+# Wrapper and build scripts first: this layer (Gradle download + dependency
+# resolution) stays cached until one of these files changes.
+COPY gradlew settings.gradle.kts build.gradle.kts ./
+COPY gradle ./gradle
+RUN chmod +x gradlew && ./gradlew --no-daemon dependencies > /dev/null
 COPY src ./src
-RUN mvn clean test package -B
+RUN ./gradlew --no-daemon jar -x test && cp build/libs/app.jar /src/app.jar
 
-FROM eclipse-temurin:21-jre-alpine AS runner
+# ---- runtime ----------------------------------------------------------------
+FROM eclipse-temurin:25-jre AS runtime
+RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin app
 WORKDIR /app
-COPY --from=builder /app/target/learn-java-1.0.0.jar /app/app.jar
-
-# Run with modern Java 21 Generational ZGC for low-latency GC
-ENTRYPOINT ["java", "-XX:+UseZGC", "-XX:+ZGenerational", "-jar", "/app/app.jar"]
+COPY --from=build /src/app.jar app.jar
+USER app
+# The process reads PORT and binds 0.0.0.0. Keep PORT, EXPOSE and APP_PORT in ci.yml equal.
+ENV PORT=8080 \
+    JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError"
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]
